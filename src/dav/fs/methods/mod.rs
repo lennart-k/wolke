@@ -1,0 +1,12 @@
+mod get;
+pub use get::route_get;
+mod mv;
+pub use mv::route_move;
+mod copy;
+pub use copy::route_copy;
+mod delete;
+pub use delete::route_delete;
+mod put;
+pub use put::route_put;
+mod mkcol;
+pub use mkcol::route_mkcol;

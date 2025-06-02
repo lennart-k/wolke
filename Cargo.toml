@@ -1,0 +1,107 @@
+[workspace.package]
+version = "0.1.0"
+edition = "2024"
+description = "A file server with WebDAV"
+repository = "https://github.com/lennart-k/file-server"
+
+[package]
+name = "file-server"
+version.workspace = true
+edition.workspace = true
+description.workspace = true
+repository.workspace = true
+resolver = "2"
+publish = false
+
+[features]
+default = ["debug"]
+debug = ["opentelemetry"]
+opentelemetry = [
+  "dep:opentelemetry",
+  "dep:opentelemetry-otlp",
+  "dep:opentelemetry_sdk",
+  "dep:opentelemetry-semantic-conventions",
+  "dep:tracing-opentelemetry",
+]
+
+
+[workspace]
+
+[dependencies]
+rustical_dav = { workspace = true, features = ["actix"] }
+rustical_oidc.workspace = true
+rustical_xml.workspace = true
+askama.workspace = true
+askama_web.workspace = true
+async-trait.workspace = true
+actix-web.workspace = true
+actix-files = "0.6"
+anyhow.workspace = true
+serde.workspace = true
+tokio.workspace = true
+thiserror.workspace = true
+derive_more.workspace = true
+clap.workspace = true
+figment.workspace = true
+quick-xml.workspace = true
+tracing-actix-web = "0.7"
+chrono = "0.4"
+time = "0.3"
+mime_guess = "2.0"
+actix-session = "0.10"
+hex = { version = "0.4", features = ["serde"] }
+futures-core = "0.3"
+futures = "0.3"
+percent-encoding = "2.3"
+bitflags = "2.9"
+mime = "0.3"
+
+opentelemetry = { version = "0.30", optional = true }
+opentelemetry-otlp = { version = "0.30", optional = true, features = [
+  "grpc-tonic",
+] }
+opentelemetry_sdk = { version = "0.30", features = [
+  "rt-tokio",
+], optional = true }
+opentelemetry-semantic-conventions = { version = "0.30", optional = true }
+tracing-opentelemetry = { version = "0.31", optional = true }
+tracing-subscriber = { version = "0.3", features = [
+  "env-filter",
+  "fmt",
+  "registry",
+] }
+tracing.workspace = true
+rand = "0.8"
+
+[workspace.dependencies]
+rustical_dav = { git = "https://github.com/lennart-k/rustical", branch = "main" }
+rustical_oidc = { git = "https://github.com/lennart-k/rustical", branch = "main" }
+rustical_xml = { git = "https://github.com/lennart-k/rustical", branch = "main" }
+async-trait = "0.1"
+actix-web = "4.9"
+anyhow = { version = "1.0", features = ["backtrace"] }
+serde = { version = "1.0", features = ["serde_derive", "derive", "rc"] }
+chrono = { version = "0.4", features = ["serde"] }
+tokio = { version = "1", features = [
+  "net",
+  "tracing",
+  "macros",
+  "rt-multi-thread",
+  "full",
+] }
+url = "2.5"
+base64 = "0.22"
+thiserror = "2.0"
+quick-xml = { version = "0.37" }
+derive_more = { version = "2.0", features = [
+  "from",
+  "try_into",
+  "into",
+  "deref",
+  "constructor",
+] }
+askama = { version = "0.14", features = ["serde_json"] }
+askama_web = { version = "0.14.0", features = ["actix-web-4"] }
+clap = { version = "4.5", features = ["derive", "env"] }
+figment = { version = "0.10", features = ["env", "toml"] }
+tracing = "0.1"
