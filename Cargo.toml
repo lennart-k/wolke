@@ -71,8 +71,8 @@ tracing-subscriber = { version = "0.3", features = [
 tracing.workspace = true
 
 [workspace.dependencies]
-rustical_dav = { git = "https://github.com/lennart-k/rustical", tag = "v6.0.0" }
-rustical_xml = { git = "https://github.com/lennart-k/rustical", tag = "v6.0.0" }
+rustical_dav = { git = "https://github.com/lennart-k/rustical", tag = "v0.6.0" }
+rustical_xml = { git = "https://github.com/lennart-k/rustical", tag = "v0.6.0" }
 scoped-fs = { path = "./crates/scoped-fs/" }
 async-trait = "0.1"
 anyhow = { version = "1.0", features = ["backtrace"] }

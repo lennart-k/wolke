@@ -1454,7 +1454,7 @@ checksum = "719b953e2095829ee67db738b3bfa9fa368c94900df327b3f07fe6e794d2fe1f"
 [[package]]
 name = "rustical_dav"
 version = "0.6.0"
-source = "git+https://github.com/lennart-k/rustical?branch=main#8b01c5388b028b25f91542156963781d29084af3"
+source = "git+https://github.com/lennart-k/rustical?tag=v0.6.0#8b01c5388b028b25f91542156963781d29084af3"
 dependencies = [
  "async-trait",
  "axum",
@@ -1480,7 +1480,7 @@ dependencies = [
 [[package]]
 name = "rustical_xml"
 version = "0.6.0"
-source = "git+https://github.com/lennart-k/rustical?branch=main#8b01c5388b028b25f91542156963781d29084af3"
+source = "git+https://github.com/lennart-k/rustical?tag=v0.6.0#8b01c5388b028b25f91542156963781d29084af3"
 dependencies = [
  "quick-xml",
  "thiserror",
@@ -2299,7 +2299,7 @@ checksum = "ea2f10b9bb0928dfb1b42b65e1f9e36f7f54dbdf08457afefb38afcdec4fa2bb"
 [[package]]
 name = "xml_derive"
 version = "0.1.0"
-source = "git+https://github.com/lennart-k/rustical?branch=main#8b01c5388b028b25f91542156963781d29084af3"
+source = "git+https://github.com/lennart-k/rustical?tag=v0.6.0#8b01c5388b028b25f91542156963781d29084af3"
 dependencies = [
  "darling",
  "heck",

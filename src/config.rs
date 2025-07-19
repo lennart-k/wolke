@@ -1,3 +1,5 @@
+use std::path::PathBuf;
+
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Deserialize, Serialize)]
@@ -23,6 +25,13 @@ pub struct Config {
     pub http: HttpConfig,
     #[serde(default)]
     pub tracing: TracingConfig,
+
+    pub fs: FSConfig,
+}
+
+#[derive(Deserialize, Serialize)]
+pub struct FSConfig {
+    pub root_path: PathBuf,
 }
 
 #[derive(Debug, Deserialize, Serialize)]
