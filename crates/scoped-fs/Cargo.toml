@@ -6,8 +6,5 @@ description.workspace = true
 repository.workspace = true
 
 [dependencies]
-async-trait.workspace = true
-tokio.workspace = true
-http.workspace = true
 thiserror.workspace = true
 serde.workspace = true

@@ -2,10 +2,10 @@
 version = "0.1.0"
 edition = "2024"
 description = "A file server with WebDAV"
-repository = "https://github.com/lennart-k/file-server"
+repository = "https://github.com/lennart-k/bober"
 
 [package]
-name = "file-server"
+name = "bober"
 version.workspace = true
 edition.workspace = true
 description.workspace = true
@@ -24,19 +24,16 @@ opentelemetry = [
   "dep:tracing-opentelemetry",
 ]
 
-
 [workspace]
 members = ["crates/*"]
 
 [dependencies]
 rustical_dav.workspace = true
-rustical_oidc.workspace = true
 rustical_xml.workspace = true
 scoped-fs.workspace = true
 axum = "0.8"
 tower = "0.5"
 httpdate = "1.0"
-askama.workspace = true
 async-trait.workspace = true
 anyhow.workspace = true
 serde.workspace = true
@@ -46,10 +43,7 @@ derive_more.workspace = true
 clap.workspace = true
 figment.workspace = true
 quick-xml.workspace = true
-chrono = "0.4"
-time = "0.3"
 mime_guess = "2.0"
-hex = { version = "0.4", features = ["serde"] }
 futures-core = "0.3"
 futures = "0.3"
 percent-encoding = "2.3"
