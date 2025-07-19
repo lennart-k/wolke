@@ -1,4 +1,4 @@
-# File Server
+# sfs (Simple File Server)
 
 This codebase explores whether the RustiCal code might be a suitable foundation for a WebDAV file server that will also extend to a web browser-based file manager
 

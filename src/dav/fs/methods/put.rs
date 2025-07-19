@@ -5,26 +5,28 @@ use crate::{
     },
     filesystem::{Filesystem, FilesystemProvider},
 };
-use actix_web::{
-    HttpResponse,
-    http::StatusCode,
-    web::{Data, Path, Payload},
+use axum::{
+    body::Body,
+    extract::{Path, State},
+    response::{IntoResponse, Response},
 };
 use futures::StreamExt;
+use http::{Request, StatusCode};
 use std::io::Write;
 
 pub async fn route_put<FSP: FilesystemProvider>(
-    path: Path<FSResourceServicePath>,
-    resource_service: Data<FSResourceService<FSP>>,
-    mut payload: Payload,
-) -> Result<HttpResponse, Error> {
-    // TODO: Overwrite
+    State(resource_service): State<FSResourceService<FSP>>,
+    Path(path): Path<FSResourceServicePath>,
+    req: Request<Body>,
+) -> Result<Response<Body>, Error> {
+    let mut stream = req.into_body().into_data_stream();
+
     let filesystem = resource_service.0.get_filesystem(&path.mount).await?;
     let mut file = filesystem.create_file(&path.path).await?;
-    while let Some(chunk) = payload.next().await {
+    while let Some(chunk) = stream.next().await {
         let chunk = chunk?;
         file.write_all(&chunk)?;
     }
 
-    Ok(HttpResponse::build(StatusCode::CREATED).finish())
+    Ok(StatusCode::CREATED.into_response())
 }

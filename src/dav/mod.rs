@@ -1,15 +1,9 @@
 mod error;
 pub mod fs;
-// pub mod principal;
-
-use std::{
-    convert::Infallible,
-    future::{Ready, ready},
-};
-
-use actix_web::FromRequest;
+use axum::extract::FromRequestParts;
 pub use error::Error;
 use rustical_dav::Principal;
+use std::convert::Infallible;
 
 #[derive(Debug, derive_more::From, Clone)]
 pub struct User(pub String);
@@ -20,14 +14,16 @@ impl Principal for User {
     }
 }
 
-impl FromRequest for User {
-    type Error = Infallible;
-    type Future = Ready<Result<Self, Self::Error>>;
+impl<S> FromRequestParts<S> for User
+where
+    S: Send + Sync,
+{
+    type Rejection = Infallible;
 
-    fn from_request(
-        _req: &actix_web::HttpRequest,
-        _payload: &mut actix_web::dev::Payload,
-    ) -> Self::Future {
-        ready(Ok(User("user".to_owned())))
+    async fn from_request_parts(
+        _parts: &mut http::request::Parts,
+        _state: &S,
+    ) -> Result<Self, Self::Rejection> {
+        Ok(User("user".to_owned()))
     }
 }

@@ -1,12 +1,8 @@
 mod get;
-pub use get::route_get;
-mod mv;
-pub use mv::route_move;
-mod copy;
-pub use copy::route_copy;
-mod delete;
-pub use delete::route_delete;
+pub use get::*;
+
 mod put;
-pub use put::route_put;
+pub use put::*;
+
 mod mkcol;
-pub use mkcol::route_mkcol;
+pub use mkcol::*;

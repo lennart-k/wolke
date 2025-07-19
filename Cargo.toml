@@ -26,16 +26,18 @@ opentelemetry = [
 
 
 [workspace]
+members = ["crates/*"]
 
 [dependencies]
-rustical_dav = { workspace = true, features = ["actix"] }
+rustical_dav.workspace = true
 rustical_oidc.workspace = true
 rustical_xml.workspace = true
+scoped-fs.workspace = true
+axum = "0.8"
+tower = "0.5"
+httpdate = "1.0"
 askama.workspace = true
-askama_web.workspace = true
 async-trait.workspace = true
-actix-web.workspace = true
-actix-files = "0.6"
 anyhow.workspace = true
 serde.workspace = true
 tokio.workspace = true
@@ -44,17 +46,19 @@ derive_more.workspace = true
 clap.workspace = true
 figment.workspace = true
 quick-xml.workspace = true
-tracing-actix-web = "0.7"
 chrono = "0.4"
 time = "0.3"
 mime_guess = "2.0"
-actix-session = "0.10"
 hex = { version = "0.4", features = ["serde"] }
 futures-core = "0.3"
 futures = "0.3"
 percent-encoding = "2.3"
+http.workspace = true
 bitflags = "2.9"
 mime = "0.3"
+headers = "0.4"
+axum-extra = { version = "0.10", features = ["typed-header"] }
+tower-http = { version = "0.6", features = ["trace", "fs", "normalize-path"] }
 
 opentelemetry = { version = "0.30", optional = true }
 opentelemetry-otlp = { version = "0.30", optional = true, features = [
@@ -71,14 +75,13 @@ tracing-subscriber = { version = "0.3", features = [
   "registry",
 ] }
 tracing.workspace = true
-rand = "0.8"
 
 [workspace.dependencies]
 rustical_dav = { git = "https://github.com/lennart-k/rustical", branch = "main" }
 rustical_oidc = { git = "https://github.com/lennart-k/rustical", branch = "main" }
 rustical_xml = { git = "https://github.com/lennart-k/rustical", branch = "main" }
+scoped-fs = { path = "./crates/scoped-fs/" }
 async-trait = "0.1"
-actix-web = "4.9"
 anyhow = { version = "1.0", features = ["backtrace"] }
 serde = { version = "1.0", features = ["serde_derive", "derive", "rc"] }
 chrono = { version = "0.4", features = ["serde"] }
@@ -101,7 +104,7 @@ derive_more = { version = "2.0", features = [
   "constructor",
 ] }
 askama = { version = "0.14", features = ["serde_json"] }
-askama_web = { version = "0.14.0", features = ["actix-web-4"] }
 clap = { version = "4.5", features = ["derive", "env"] }
 figment = { version = "0.10", features = ["env", "toml"] }
 tracing = "0.1"
+http = "1.3"

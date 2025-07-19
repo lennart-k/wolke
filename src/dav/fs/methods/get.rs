@@ -3,103 +3,112 @@ use crate::{
         Error,
         fs::{FSResourceService, FSResourceServicePath},
     },
-    filesystem::{FileReader, Filesystem, FilesystemProvider},
+    filesystem::{DavMetadata, FileReader, Filesystem, FilesystemProvider},
 };
-use actix_files::HttpRange;
-use actix_web::{
-    HttpRequest, HttpResponse, Responder,
-    body::SizedStream,
-    http::{
-        StatusCode,
-        header::{
-            self, Charset, ContentDisposition, DispositionParam, ExtendedValue, HeaderValue,
-            HttpDate,
-        },
-    },
-    web::{Data, Path},
+use axum::{
+    body::Body,
+    extract::{Path, State},
+    response::Response,
 };
+use axum_extra::TypedHeader;
+use headers::Range;
+use http::{HeaderValue, Request, StatusCode, header};
+use httpdate::HttpDate;
 use percent_encoding::{CONTROLS, percent_encode};
 use rustical_dav::resource::ResourceService;
-use std::os::unix::ffi::OsStrExt;
+use std::ops::Bound;
 
-// A lot of code here is stolen from actix-files
-// However, I'm not just using NamedFile since I want to be filesystem-agnostic
 pub async fn route_get<FSP: FilesystemProvider>(
-    req: HttpRequest,
-    path: Path<FSResourceServicePath>,
-    resource_service: Data<FSResourceService<FSP>>,
-) -> Result<impl Responder, Error> {
-    dbg!(&req);
-    // TODO: Why does extracting zip files not work with gvfs?
-    let resource = resource_service.get_resource(&path).await?;
-    let filename = resource.path.file_name().unwrap();
+    State(resource_service): State<FSResourceService<FSP>>,
+    Path(path): Path<FSResourceServicePath>,
+    http_range: Option<TypedHeader<Range>>,
+    req: Request<Body>,
+) -> Result<Response<Body>, Error> {
+    let resource = resource_service.get_resource(&path, false).await?;
+    let filename = resource.path.file_name();
     let filename = percent_encode(filename.as_bytes(), CONTROLS).to_string();
     let filesystem = resource_service.0.get_filesystem(&path.mount).await?;
-    let file = filesystem.get_file(&path.path).await?;
     let md = filesystem.metadata(&path.path).await?;
+    let file = filesystem.get_file(&path.path).await?;
 
-    let mut res = HttpResponse::build(StatusCode::OK);
+    let mut res = Response::builder().status(StatusCode::OK);
+    let headers = res.headers_mut().unwrap();
 
     if let Some(content_type) = mime_guess::from_path(&filename).first_raw() {
-        res.insert_header((header::CONTENT_TYPE, content_type));
+        headers.insert(header::CONTENT_TYPE, HeaderValue::from_static(content_type));
     }
 
-    res.insert_header((
+    headers.insert(
         header::CONTENT_DISPOSITION,
-        ContentDisposition {
-            disposition: actix_web::http::header::DispositionType::Attachment,
-            parameters: vec![
-                DispositionParam::Filename(filename.to_owned()),
-                DispositionParam::FilenameExt(ExtendedValue {
-                    charset: Charset::Ext("UTF-8".to_owned()),
-                    value: filename.as_bytes().to_vec(),
-                    language_tag: None,
-                }),
-            ],
-        },
-    ));
+        HeaderValue::from_str(&format!(
+            "attachement; filename*=UTF-8''{}; filename={}",
+            filename, filename
+        ))
+        .unwrap(),
+    );
 
-    res.insert_header((header::ACCEPT_RANGES, "bytes"));
+    headers.insert(header::ACCEPT_RANGES, HeaderValue::from_static("bytes"));
 
-    if let Ok(modified) = md.modified() {
-        res.insert_header((header::LAST_MODIFIED, HttpDate::from(modified).to_string()));
-    }
+    headers.insert(
+        header::LAST_MODIFIED,
+        HeaderValue::try_from(HttpDate::from(md.modified()).to_string()).unwrap(),
+    );
 
     let mut length = md.len();
     let mut offset = 0;
 
-    if let Some(ranges) = req.headers().get(header::RANGE) {
-        if let Ok(ranges_header) = ranges.to_str() {
-            if let Ok(ranges) = HttpRange::parse(ranges_header, length) {
-                length = ranges[0].length;
-                offset = ranges[0].start;
-
-                if req.headers().contains_key(&header::ACCEPT_ENCODING) {
-                    // don't allow compression middleware to modify partial content
-                    res.insert_header((
-                        header::CONTENT_ENCODING,
-                        HeaderValue::from_static("identity"),
-                    ));
+    if let Some(TypedHeader(range_header)) = http_range {
+        let mut ranges = range_header.satisfiable_ranges(length);
+        if let Some((start, end)) = ranges.next() {
+            offset = match start {
+                Bound::Unbounded => 0,
+                Bound::Included(start) => start,
+                _ => {
+                    return Ok(res
+                        .status(StatusCode::RANGE_NOT_SATISFIABLE)
+                        .body(Body::empty())
+                        .unwrap());
                 }
-
-                res.insert_header((
-                    header::CONTENT_RANGE,
-                    format!("bytes {}-{}/{}", offset, offset + length - 1, md.len()),
-                ));
-            } else {
-                res.insert_header((header::CONTENT_RANGE, format!("bytes */{}", length)));
-                return Ok(res.status(StatusCode::RANGE_NOT_SATISFIABLE).finish());
-            }
-        } else {
-            return Ok(res.status(StatusCode::BAD_REQUEST).finish());
+            };
+            length = match end {
+                Bound::Unbounded => length,
+                Bound::Included(end) => end,
+                Bound::Excluded(end) => end - 1,
+            } - offset;
         }
+        if ranges.next().is_some() {
+            // We have more than one range
+            return Ok(res
+                .status(StatusCode::RANGE_NOT_SATISFIABLE)
+                .body(Body::empty())
+                .unwrap());
+        }
+
+        if req.headers().contains_key(&header::ACCEPT_ENCODING) {
+            // don't allow compression middleware to modify partial content
+            headers.insert(
+                header::CONTENT_ENCODING,
+                HeaderValue::from_static("identity"),
+            );
+        }
+
+        headers.insert(
+            header::CONTENT_RANGE,
+            HeaderValue::try_from(format!(
+                "bytes {}-{}/{}",
+                offset,
+                offset + length - 1,
+                md.len()
+            ))
+            .unwrap(),
+        );
     }
 
     if offset != 0 || length != md.len() {
-        res.status(StatusCode::PARTIAL_CONTENT);
+        res = res.status(StatusCode::PARTIAL_CONTENT);
     }
 
     let stream = file.stream(length, offset).await?;
 
-    Ok(res.body(SizedStream::new(length, stream)))
+    Ok(res.body(Body::from_stream(stream)).unwrap())
 }

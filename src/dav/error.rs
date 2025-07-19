@@ -1,50 +1,38 @@
-use actix_web::{HttpResponse, error::PayloadError, http::StatusCode};
+use axum::{body::Body, response::Response};
+use http::StatusCode;
 
 #[derive(Debug, thiserror::Error)]
 pub enum Error {
-    #[error("Unauthorized")]
-    Unauthorized,
-
-    #[error("Not Found")]
-    NotFound,
-
-    #[error("Not implemented")]
-    NotImplemented,
+    #[error(transparent)]
+    Io(#[from] std::io::Error),
 
     #[error(transparent)]
-    IoError(#[from] std::io::Error),
+    Dav(#[from] rustical_dav::Error),
 
     #[error(transparent)]
-    DavError(#[from] rustical_dav::Error),
+    XmlDecode(#[from] rustical_xml::XmlError),
 
     #[error(transparent)]
-    PayloadError(#[from] PayloadError),
+    FS(#[from] crate::filesystem::Error),
 
     #[error(transparent)]
-    XmlDecodeError(#[from] rustical_xml::XmlError),
-
-    #[error(transparent)]
-    FSError(#[from] crate::filesystem::Error),
+    Axum(#[from] axum::Error),
 }
 
-impl actix_web::ResponseError for Error {
-    fn status_code(&self) -> actix_web::http::StatusCode {
+impl Error {
+    fn status_code(&self) -> StatusCode {
         match self {
-            Error::PayloadError(err) => err.status_code(),
-            Error::DavError(err) => err.status_code(),
-            Error::IoError(err) => err.status_code(),
-            Error::Unauthorized => StatusCode::UNAUTHORIZED,
-            Error::XmlDecodeError(_) => StatusCode::BAD_REQUEST,
-            Error::NotImplemented => StatusCode::INTERNAL_SERVER_ERROR,
-            Error::NotFound => StatusCode::NOT_FOUND,
-            Error::FSError(err) => err.status_code(),
+            Self::FS(err) => err.status_code(),
+            _ => StatusCode::INTERNAL_SERVER_ERROR,
         }
     }
-    fn error_response(&self) -> actix_web::HttpResponse<actix_web::body::BoxBody> {
-        match self {
-            Error::DavError(err) => err.error_response(),
-            Error::FSError(err) => err.error_response(),
-            _ => HttpResponse::build(self.status_code()).body(self.to_string()),
-        }
+}
+
+impl axum::response::IntoResponse for Error {
+    fn into_response(self) -> Response {
+        Response::builder()
+            .status(self.status_code())
+            .body(Body::new(self.to_string()))
+            .expect("This must work")
     }
 }

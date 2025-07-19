@@ -5,17 +5,19 @@ use crate::{
     },
     filesystem::{Filesystem, FilesystemProvider},
 };
-use actix_web::{
-    HttpResponse,
-    http::StatusCode,
-    web::{Data, Path, Payload},
+use axum::{
+    body::Body,
+    extract::{Path, State},
+    response::{IntoResponse, Response},
 };
+use http::StatusCode;
 
 pub async fn route_mkcol<FSP: FilesystemProvider>(
-    path: Path<FSResourceServicePath>,
-    resource_service: Data<FSResourceService<FSP>>,
-) -> Result<HttpResponse, Error> {
+    State(resource_service): State<FSResourceService<FSP>>,
+    Path(path): Path<FSResourceServicePath>,
+) -> Result<Response<Body>, Error> {
     let filesystem = resource_service.0.get_filesystem(&path.mount).await?;
     filesystem.create_dir(&path.path).await?;
-    Ok(HttpResponse::build(StatusCode::CREATED).finish())
+
+    Ok(StatusCode::CREATED.into_response())
 }

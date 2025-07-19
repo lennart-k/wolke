@@ -1,100 +1,101 @@
 use super::{Error, User};
-use crate::filesystem::{Filesystem, FilesystemProvider};
-use actix_web::{
-    dev::ResourceMap,
-    http::{self, header::HttpDate},
-    web,
+use crate::{
+    dav::fs::methods::{route_mkcol, route_put},
+    filesystem::{DavMetadata, Filesystem, FilesystemProvider},
 };
 use async_trait::async_trait;
+use axum::handler::Handler;
 use derive_more::{Constructor, Deref};
-use methods::{route_copy, route_delete, route_get, route_mkcol, route_move, route_put};
+use httpdate::HttpDate;
+use methods::route_get;
 use rustical_dav::{
     privileges::UserPrivilegeSet,
-    resource::{PrincipalUri, Resource, ResourceService},
+    resource::{
+        AxumMethods, MethodFunction, PrincipalUri, Resource, ResourceName, ResourceService,
+    },
     xml::{Resourcetype, ResourcetypeInner},
 };
-use rustical_xml::{EnumUnitVariants, EnumVariants, XmlDeserialize, XmlSerialize};
+use rustical_xml::{EnumVariants, PropName, XmlDeserialize, XmlSerialize};
+use scoped_fs::ScopedPath;
 use serde::Deserialize;
-use std::{path::PathBuf, str::FromStr, sync::Arc, time::SystemTime};
+use std::{sync::Arc, time::SystemTime};
+use tower::Service;
 
 #[derive(Debug, Clone)]
 pub struct FSPrincipalUri;
 
 impl PrincipalUri for FSPrincipalUri {
+    fn principal_collection(&self) -> String {
+        "/dav/mount/".into()
+    }
     fn principal_uri(&self, principal: &str) -> String {
-        format!("/mount/{principal}")
+        format!("/dav/mount/{principal}/")
     }
 }
 
-// mod file;
 mod methods;
+
 #[derive(Debug, Clone, Deserialize)]
 pub struct FSResourceServicePath {
     mount: String,
     #[serde(default)]
-    path: String,
+    path: ScopedPath,
 }
 
 #[derive(Debug, Constructor, Deref)]
 pub struct FSResourceService<FSP: FilesystemProvider>(Arc<FSP>);
 
-#[async_trait(?Send)]
+impl<FSP: FilesystemProvider> Clone for FSResourceService<FSP> {
+    fn clone(&self) -> Self {
+        Self(self.0.clone())
+    }
+}
+
+#[async_trait]
 impl<FSP: FilesystemProvider> ResourceService for FSResourceService<FSP> {
-    type MemberType = FSResource;
+    type MemberType = FSResource<FSP>;
     type Principal = User;
     type PathComponents = FSResourceServicePath;
     type Error = Error;
-    type Resource = FSResource;
+    type Resource = FSResource<FSP>;
     type PrincipalUri = FSPrincipalUri;
+
+    const DAV_HEADER: &str = "1, 3, access-control";
 
     async fn get_resource(
         &self,
         path: &Self::PathComponents,
+        _show_deleted: bool,
     ) -> Result<Self::Resource, Self::Error> {
-        let filesystem = self.get_filesystem(&path.mount).await?;
-        let resource_path = filesystem.resolve_path(&path.path)?;
+        let fs = self.get_filesystem(&path.mount).await?;
+        let metadata = fs.metadata(&path.path).await?;
         Ok(FSResource {
             mount: path.mount.clone(),
-            path: resource_path,
+            path: path.path.to_owned(),
+            metadata,
         })
     }
 
     async fn get_members(
         &self,
         path: &Self::PathComponents,
-    ) -> Result<Vec<(String, Self::MemberType)>, Self::Error> {
+    ) -> Result<Vec<Self::MemberType>, Self::Error> {
         let filesystem = self.get_filesystem(&path.mount).await?;
+        let meta = filesystem.metadata(&path.path).await?;
+        if !meta.is_dir() {
+            return Ok(vec![]);
+        }
+
         let mut result = vec![];
-        let listdir = filesystem.list_dir(&path.path).await?;
-        for entry in listdir.into_iter() {
-            let entry = entry?;
-            result.push((
-                entry.file_name().into_string().unwrap(),
-                FSResource {
-                    path: entry.path(),
-                    mount: path.mount.clone(),
-                },
-            ));
+        let listdir: Vec<_> = filesystem.list_dir(&path.path).await?.into_iter().collect();
+        for entry in listdir {
+            result.push(FSResource {
+                mount: path.mount.clone(),
+                metadata: filesystem.metadata(&entry).await.unwrap(),
+                path: entry,
+            });
         }
         Ok(result)
-    }
-
-    fn actix_scope(self) -> actix_web::Scope
-    where
-        Self::Error: actix_web::ResponseError,
-        Self::Principal: actix_web::FromRequest,
-    {
-        web::scope("{path:.*}").service(
-            self.actix_resource()
-                .get(route_get::<FSP>)
-                .put(route_put::<FSP>)
-                // .delete(route_delete::<FSP>)
-                .route(web::method(http::Method::from_str("COPY").unwrap()).to(route_copy::<FSP>))
-                .route(web::method(http::Method::from_str("MOVE").unwrap()).to(route_move::<FSP>))
-                .route(
-                    web::method(http::Method::from_str("MKCOL").unwrap()).to(route_mkcol::<FSP>),
-                ),
-        )
     }
 
     async fn delete_resource(
@@ -106,15 +107,54 @@ impl<FSP: FilesystemProvider> ResourceService for FSResourceService<FSP> {
         filesystem.delete_file(&path.path).await?;
         Ok(())
     }
+
+    async fn copy_resource(
+        &self,
+        FSResourceServicePath { mount, path }: &Self::PathComponents,
+        FSResourceServicePath {
+            mount: dest_mount,
+            path: dest_path,
+        }: &Self::PathComponents,
+        _user: &Self::Principal,
+        overwrite: bool,
+    ) -> Result<bool, Self::Error> {
+        assert_eq!(mount, dest_mount);
+
+        let fs = self.get_filesystem(mount).await?;
+        Ok(fs.copy(path, dest_path, overwrite).await?)
+    }
+
+    async fn move_resource(
+        &self,
+        FSResourceServicePath { mount, path }: &Self::PathComponents,
+        FSResourceServicePath {
+            mount: dest_mount,
+            path: dest_path,
+        }: &Self::PathComponents,
+        _user: &Self::Principal,
+        overwrite: bool,
+    ) -> Result<bool, Self::Error> {
+        assert_eq!(mount, dest_mount);
+
+        let fs = self.get_filesystem(mount).await?;
+        Ok(fs.mv(path, dest_path, overwrite).await?)
+    }
 }
 
 #[derive(Clone)]
-pub struct FSResource {
+pub struct FSResource<FSP: FilesystemProvider> {
     pub mount: String,
-    pub path: PathBuf,
+    pub path: ScopedPath,
+    pub metadata: <FSP::FS as Filesystem>::Metadata,
 }
 
-#[derive(XmlDeserialize, XmlSerialize, PartialEq, Clone, EnumVariants, EnumUnitVariants)]
+impl<FSP: FilesystemProvider> ResourceName for FSResource<FSP> {
+    fn get_name(&self) -> String {
+        self.path.file_name().to_owned()
+    }
+}
+
+#[derive(XmlDeserialize, XmlSerialize, PartialEq, Clone, EnumVariants, PropName)]
 #[xml(unit_variants_ident = "FSResourcePropName")]
 pub enum FSResourceProp {
     // WebDAV (RFC 4918)
@@ -122,32 +162,36 @@ pub enum FSResourceProp {
     #[xml(ns = "rustical_dav::namespace::NS_DAV")]
     Resourcetype(Resourcetype),
     #[xml(ns = "rustical_dav::namespace::NS_DAV")]
-    Displayname(String),
-    #[xml(ns = "rustical_dav::namespace::NS_DAV")]
     Getcontentlength(u64),
     #[xml(ns = "rustical_dav::namespace::NS_DAV")]
-    Creationdate(Option<String>),
+    Creationdate(String),
     #[xml(ns = "rustical_dav::namespace::NS_DAV")]
-    Getlastmodified(Option<String>),
+    Getlastmodified(String),
     #[xml(ns = "rustical_dav::namespace::NS_DAV")]
     Getcontenttype(Option<String>),
     #[xml(ns = "rustical_dav::namespace::NS_DAV")]
     Getetag(Option<String>),
 }
 
-impl FSResource {
+impl<FSP: FilesystemProvider> FSResource<FSP> {
     pub fn get_content_type(&self) -> Option<&'static str> {
-        mime_guess::from_path(self.path.clone()).first_raw()
+        self.path
+            .file_extension()
+            .and_then(|ext| mime_guess::from_ext(ext).first_raw())
     }
 }
 
-impl Resource for FSResource {
+impl<FSP: FilesystemProvider> Resource for FSResource<FSP> {
     type Prop = FSResourceProp;
     type Error = Error;
     type Principal = User;
 
+    fn is_collection(&self) -> bool {
+        self.metadata.is_dir()
+    }
+
     fn get_resourcetype(&self) -> Resourcetype {
-        if self.path.is_dir() {
+        if self.metadata.is_dir() {
             Resourcetype(&[ResourcetypeInner(
                 Some(rustical_dav::namespace::NS_DAV),
                 "collection",
@@ -167,37 +211,24 @@ impl Resource for FSResource {
             FSResourcePropName::Resourcetype => {
                 FSResourceProp::Resourcetype(self.get_resourcetype())
             }
-            FSResourcePropName::Displayname => {
-                FSResourceProp::Displayname(if let Some(file_name) = self.path.file_name() {
-                    file_name.to_str().unwrap().to_owned()
-                } else {
-                    self.mount.to_owned()
-                })
-            }
             FSResourcePropName::Getcontentlength => {
-                FSResourceProp::Getcontentlength(self.path.metadata().unwrap().len())
+                FSResourceProp::Getcontentlength(self.metadata.len())
             }
-            FSResourcePropName::Creationdate => FSResourceProp::Creationdate(
-                self.path
-                    .metadata()
-                    .unwrap()
-                    .created()
-                    .ok()
-                    .map(|system_time| HttpDate::from(system_time).to_string()),
-            ),
+            FSResourcePropName::Creationdate => {
+                FSResourceProp::Creationdate(HttpDate::from(self.metadata.created()).to_string())
+            }
             FSResourcePropName::Getlastmodified => FSResourceProp::Getlastmodified(
-                self.path
-                    .metadata()
-                    .unwrap()
-                    .modified()
-                    .ok()
-                    .map(|system_time| HttpDate::from(system_time).to_string()),
+                HttpDate::from(self.metadata.modified()).to_string(),
             ),
             FSResourcePropName::Getcontenttype => {
                 FSResourceProp::Getcontenttype(self.get_content_type().map(|mime| mime.to_owned()))
             }
             FSResourcePropName::Getetag => FSResourceProp::Getetag(self.get_etag()),
         })
+    }
+
+    fn get_displayname(&self) -> Option<&str> {
+        Some(self.path.file_name())
     }
 
     fn get_owner(&self) -> Option<&str> {
@@ -209,14 +240,36 @@ impl Resource for FSResource {
     }
 
     fn get_etag(&self) -> Option<String> {
-        let metadata = self.path.metadata().unwrap();
-        let modified = metadata
+        let modified = self
+            .metadata
             .modified()
-            .ok()?
             .duration_since(SystemTime::UNIX_EPOCH)
             .ok()?
             .as_millis();
-        let size = metadata.len();
+        let size = self.metadata.len();
         Some(format!("\"{size}-{modified}\""))
+    }
+}
+
+impl<FSP: FilesystemProvider> AxumMethods for FSResourceService<FSP> {
+    fn get() -> Option<MethodFunction<Self>> {
+        Some(|state, req| {
+            let mut service = Handler::with_state(route_get, state);
+            Box::pin(Service::call(&mut service, req))
+        })
+    }
+
+    fn put() -> Option<MethodFunction<Self>> {
+        Some(|state, req| {
+            let mut service = Handler::with_state(route_put, state);
+            Box::pin(Service::call(&mut service, req))
+        })
+    }
+
+    fn mkcol() -> Option<MethodFunction<Self>> {
+        Some(|state, req| {
+            let mut service = Handler::with_state(route_mkcol, state);
+            Box::pin(Service::call(&mut service, req))
+        })
     }
 }
