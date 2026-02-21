@@ -20,23 +20,29 @@ export class FileRouter extends LitElement {
 
   connectedCallback(): void {
     super.connectedCallback()
-    window.addEventListener('routechange', this.updateRoute)
-    window.addEventListener('popstate', this._onPopState, false)
+    navigation.addEventListener('navigate', this._onNavigate)
   }
 
   disconnectedCallback(): void {
     super.disconnectedCallback()
-    window.removeEventListener('routechange', this.updateRoute)
-    window.removeEventListener('popstate', this._onPopState, false)
+    navigation.removeEventListener('navigate', this._onNavigate)
   }
 
   updateRoute = () => {
     this.path = window.location.pathname.replace(/^\/frontend/, '')
   }
 
-  _onPopState = (event: PopStateEvent) => {
-    window.dispatchEvent(new Event('routechange'))
-    event.preventDefault()
+  _onNavigate = (event: NavigateEvent) => {
+    if (!event.canIntercept || event.hashChange || event.downloadRequest !== null) {
+      return;
+    }
+
+    event.intercept({
+      handler: async () => {
+        this.updateRoute()
+        window.dispatchEvent(new Event('routechange'))
+      }
+    })
   }
 
   override render() {
@@ -70,20 +76,13 @@ export class FileItem extends LitElement {
     return this
   }
 
-  _onAnchorClick(event: Event) {
-    console.log('click', event)
-    event.preventDefault()
-    window.history.pushState({}, '', event.target.href)
-    window.dispatchEvent(new Event('routechange'))
-  }
-
   override render() {
     let size = this.stat.type == 'file' ? formatFilesize(this.stat.size) : ''
-    let href = this.stat.type == 'file' ? join('/dav', this.stat.filename) : `/frontend/${this.stat.filename}`
+    let href = this.stat.type == 'file' ? join('/dav', this.stat.filename) : `/frontend${this.stat.filename}`
     return html`
       <td><input type="checkbox" .checked=${this.selected} @input=${e => this.selected = e.target.checked} /></td>
       <td>
-        <a href=${href} @click=${this._onAnchorClick}>${this.stat.basename}</a>
+        <a href=${href}>${this.stat.basename}</a>
       </td>
       <td>
       </td>
@@ -118,19 +117,12 @@ export class FileBrowser extends LitElement {
 
   async fetchContents() {
     if (this.path === null) return
-    this.entries = await davClient.getDirectoryContents(this.path, { details: false }) as FileStat[]
-    console.log(this.entries)
+    const entries = await davClient.getDirectoryContents(this.path, { details: false }) as FileStat[]
+    this.entries = entries.filter(item => item.filename !== this.path)
   }
 
   protected createRenderRoot(): HTMLElement {
     return this
-  }
-
-  _onAnchorClick(event: Event) {
-    console.log('click', event)
-    event.preventDefault()
-    window.history.pushState({}, '', event.target.href)
-    window.dispatchEvent(new Event('routechange'))
   }
 
   override render() {
@@ -148,7 +140,7 @@ export class FileBrowser extends LitElement {
         <tr>
           <td></td>
           <td>
-            <a href="./" @click=${this._onAnchorClick} >..</a>
+            <a href="./">..</a>
           </td>
           <td></td>
           <td></td>
