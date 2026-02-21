@@ -1,11 +1,11 @@
 [workspace.package]
 version = "0.1.0"
 edition = "2024"
-description = "A file server with WebDAV"
-repository = "https://github.com/lennart-k/bober"
+description = "A file server experiment with WebDAV"
+repository = "https://github.com/lennart-k/wolke"
 
 [package]
-name = "bober"
+name = "wolke"
 version.workspace = true
 edition.workspace = true
 description.workspace = true

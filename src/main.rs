@@ -31,7 +31,7 @@ mod setup_tracing;
 #[derive(Parser, Debug)]
 #[command(author, version, about, long_about = None)]
 struct Args {
-    #[arg(short, long, env, default_value = "/etc/file-server/config.toml")]
+    #[arg(short, long, env, default_value = "/etc/wolke/config.toml")]
     config_file: String,
 }
 
@@ -41,7 +41,7 @@ async fn main() -> Result<()> {
 
     let config: Config = Figment::new()
         .merge(Toml::file(&args.config_file))
-        .merge(Env::prefixed("BOBER_").split("__"))
+        .merge(Env::prefixed("WOLKE_").split("__"))
         .extract()?;
 
     setup_tracing(&config.tracing);
