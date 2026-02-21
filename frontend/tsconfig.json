@@ -1,10 +1,12 @@
 {
   "compilerOptions": {
+    "strict": true,
+    "module": "esnext",
     "experimentalDecorators": true,
     "useDefineForClassFields": false,
     "lib": [
       "dom",
-      "es2024"
+      "es2024",
     ]
   },
   "include": [
