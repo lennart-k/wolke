@@ -1,5 +1,5 @@
 use crate::dav::fs::FSPrincipalUri;
-use crate::frontend::frontent_router;
+use crate::frontend::frontend_router;
 use anyhow::Result;
 use axum::extract::Request;
 use axum::response::Response;
@@ -58,7 +58,7 @@ async fn main() -> Result<()> {
             "/dav/mount/{mount}/{*path}",
             dav::fs::FSResourceService::new(fs_provider).axum_service(),
         )
-        .nest("/frontend", frontent_router())
+        .nest("/frontend", frontend_router())
         .layer(Extension(FSPrincipalUri))
         .layer(
             TraceLayer::new_for_http()
