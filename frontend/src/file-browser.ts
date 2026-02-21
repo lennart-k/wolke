@@ -1,6 +1,6 @@
 import { html, LitElement, PropertyValues } from "lit";
 import { customElement, property } from "lit/decorators.js";
-import { davClient } from "./dav-client";
+import { davClient } from "./dav-client.ts";
 import { FileStat } from "webdav";
 import { join } from 'path-browserify'
 
@@ -20,16 +20,16 @@ export class FileRouter extends LitElement {
 
   connectedCallback(): void {
     super.connectedCallback()
-    navigation.addEventListener('navigate', this._onNavigate)
+    navigation!.addEventListener('navigate', this._onNavigate)
   }
 
   disconnectedCallback(): void {
     super.disconnectedCallback()
-    navigation.removeEventListener('navigate', this._onNavigate)
+    navigation!.removeEventListener('navigate', this._onNavigate)
   }
 
   updateRoute = () => {
-    this.path = window.location.pathname.replace(/^\/frontend/, '')
+    this.path = globalThis.location.pathname.replace(/^\/frontend/, '')
   }
 
   _onNavigate = (event: NavigateEvent) => {
@@ -40,7 +40,7 @@ export class FileRouter extends LitElement {
     event.intercept({
       handler: async () => {
         this.updateRoute()
-        window.dispatchEvent(new Event('routechange'))
+        globalThis.dispatchEvent(new Event('routechange'))
       }
     })
   }
@@ -55,32 +55,33 @@ export class FileRouter extends LitElement {
 
 function formatFilesize(size: number): string {
   let order = 0
-  let units = ['', 'K', 'M', 'G', 'T', 'P', 'E']
+  const units = ['', 'K', 'M', 'G', 'T', 'P', 'E']
   while (size >= 1000 && order + 1 < units.length) {
     order += 1
     size /= 1000
   }
   size = Math.round(size)
-  let prefix = units[order]
+  const prefix = units[order]
   return `${size}${prefix}B`
 }
 
 @customElement('file-item')
 export class FileItem extends LitElement {
   @property()
-  stat: FileStat
+  stat!: FileStat
   @property()
-  selected: boolean
+  selected: boolean = false
 
   protected createRenderRoot(): HTMLElement {
     return this
   }
 
   override render() {
-    let size = this.stat.type == 'file' ? formatFilesize(this.stat.size) : ''
-    let href = this.stat.type == 'file' ? join('/dav', this.stat.filename) : `/frontend${this.stat.filename}`
+    const size = this.stat.type == 'file' ? formatFilesize(this.stat.size) : ''
+    const href = this.stat.type == 'file' ? join('/dav', this.stat.filename) : `/frontend${this.stat.filename}`
+
     return html`
-      <td><input type="checkbox" .checked=${this.selected} @input=${e => this.selected = e.target.checked} /></td>
+      <td><input type="checkbox" .checked=${this.selected} @input=${(e: InputEvent) => this.selected = (e.target! as HTMLInputElement).checked} /></td>
       <td>
         <a href=${href}>${this.stat.basename}</a>
       </td>
@@ -100,9 +101,7 @@ export class FileBrowser extends LitElement {
   }
 
   @property()
-  path: string | null = null
-  @property()
-  pathSegments: string[] | null = null
+  path!: string
 
   @property()
   entries: Array<FileStat> = []
@@ -110,7 +109,6 @@ export class FileBrowser extends LitElement {
   protected shouldUpdate(changedProperties: PropertyValues): boolean {
     if (changedProperties.has('path')) {
       this.fetchContents()
-      this.pathSegments = this.path.split('/')
     }
     return true
   }
