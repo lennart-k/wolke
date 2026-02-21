@@ -18,7 +18,7 @@ use rustical_dav::{
 use rustical_xml::{EnumVariants, PropName, XmlDeserialize, XmlSerialize};
 use scoped_fs::ScopedPath;
 use serde::Deserialize;
-use std::{sync::Arc, time::SystemTime};
+use std::{borrow::Cow, sync::Arc, time::SystemTime};
 use tower::Service;
 
 #[derive(Debug, Clone)]
@@ -149,8 +149,8 @@ pub struct FSResource<FSP: FilesystemProvider> {
 }
 
 impl<FSP: FilesystemProvider> ResourceName for FSResource<FSP> {
-    fn get_name(&self) -> String {
-        self.path.file_name().to_owned()
+    fn get_name(&self) -> Cow<'_, str> {
+        self.path.file_name().into()
     }
 }
 

@@ -51,18 +51,18 @@ http.workspace = true
 bitflags = "2.9"
 mime = "0.3"
 headers = "0.4"
-axum-extra = { version = "0.10", features = ["typed-header"] }
+axum-extra = { version = "0.12", features = ["typed-header"] }
 tower-http = { version = "0.6", features = ["trace", "fs", "normalize-path"] }
 
-opentelemetry = { version = "0.30", optional = true }
-opentelemetry-otlp = { version = "0.30", optional = true, features = [
+opentelemetry = { version = "0.31", optional = true }
+opentelemetry-otlp = { version = "0.31", optional = true, features = [
   "grpc-tonic",
 ] }
-opentelemetry_sdk = { version = "0.30", features = [
+opentelemetry_sdk = { version = "0.31", features = [
   "rt-tokio",
 ], optional = true }
-opentelemetry-semantic-conventions = { version = "0.30", optional = true }
-tracing-opentelemetry = { version = "0.31", optional = true }
+opentelemetry-semantic-conventions = { version = "0.31", optional = true }
+tracing-opentelemetry = { version = "0.32", optional = true }
 tracing-subscriber = { version = "0.3", features = [
   "env-filter",
   "fmt",
@@ -71,8 +71,8 @@ tracing-subscriber = { version = "0.3", features = [
 tracing.workspace = true
 
 [workspace.dependencies]
-rustical_dav = { git = "https://github.com/lennart-k/rustical", tag = "v0.6.0" }
-rustical_xml = { git = "https://github.com/lennart-k/rustical", tag = "v0.6.0" }
+rustical_dav = { git = "https://github.com/lennart-k/rustical", tag = "v0.12.8" }
+rustical_xml = { git = "https://github.com/lennart-k/rustical", tag = "v0.12.8" }
 scoped-fs = { path = "./crates/scoped-fs/" }
 async-trait = "0.1"
 anyhow = { version = "1.0", features = ["backtrace"] }
@@ -88,7 +88,7 @@ tokio = { version = "1", features = [
 url = "2.5"
 base64 = "0.22"
 thiserror = "2.0"
-quick-xml = { version = "0.37" }
+quick-xml = { version = "0.39" }
 derive_more = { version = "2.0", features = [
   "from",
   "try_into",
@@ -96,7 +96,7 @@ derive_more = { version = "2.0", features = [
   "deref",
   "constructor",
 ] }
-askama = { version = "0.14", features = ["serde_json"] }
+askama = { version = "0.15", features = ["serde_json"] }
 clap = { version = "4.5", features = ["derive", "env"] }
 figment = { version = "0.10", features = ["env", "toml"] }
 tracing = "0.1"
