@@ -4,7 +4,6 @@
     "npm:@deno/vite-plugin@^1.0.6": "1.0.6_vite@7.3.1__picomatch@4.0.3",
     "npm:lit@^3.3.2": "3.3.2",
     "npm:navigation-api-types@~0.6.1": "0.6.1",
-    "npm:path-browserify@^1.0.1": "1.0.1",
     "npm:vite@*": "7.3.1_picomatch@4.0.3",
     "npm:vite@^7.3.1": "7.3.1_picomatch@4.0.3",
     "npm:webdav@^5.9.0": "5.9.0"
@@ -453,9 +452,6 @@
         "formdata-polyfill"
       ]
     },
-    "path-browserify@1.0.1": {
-      "integrity": "sha512-b7uo2UCUOYZcnF/3ID0lulOJi/bafxa1xPe7ZPsammBSpjSWQkjNxlt635YGS2MiR9GjvuXCtz2emr3jbsz98g=="
-    },
     "path-posix@1.0.0": {
       "integrity": "sha512-1gJ0WpNIiYcQydgg3Ed8KzvIqTsDpNwq+cjBCssvBtuTWjEqY1AW+i+OepiEMqDCzyro9B2sLAe4RBPajMYFiA=="
     },
@@ -580,7 +576,6 @@
       "npm:@deno/vite-plugin@^1.0.6",
       "npm:lit@^3.3.2",
       "npm:navigation-api-types@~0.6.1",
-      "npm:path-browserify@^1.0.1",
       "npm:vite@^7.3.1",
       "npm:webdav@^5.9.0"
     ]

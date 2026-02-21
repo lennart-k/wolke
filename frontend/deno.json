@@ -7,7 +7,6 @@
     "@deno/vite-plugin": "npm:@deno/vite-plugin@^1.0.6",
     "lit": "npm:lit@^3.3.2",
     "navigation-api-types": "npm:navigation-api-types@^0.6.1",
-    "path-browserify": "npm:path-browserify@^1.0.1",
     "vite": "npm:vite@^7.3.1",
     "webdav": "npm:webdav@^5.9.0"
   }

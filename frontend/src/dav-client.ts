@@ -1,3 +1,3 @@
-import { createClient } from 'webdav'
+import { createClient } from "webdav";
 
-export const davClient = createClient('/dav')
+export const davClient = createClient("/dav");

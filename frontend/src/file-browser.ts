@@ -2,7 +2,6 @@ import { html, LitElement, PropertyValues } from "lit";
 import { customElement, property } from "lit/decorators.js";
 import { davClient } from "./dav-client.ts";
 import { FileStat } from "webdav";
-import { join } from 'path-browserify'
 
 
 @customElement('file-router')
@@ -78,7 +77,7 @@ export class FileItem extends LitElement {
 
   override render() {
     const size = this.stat.type == 'file' ? formatFilesize(this.stat.size) : ''
-    const href = this.stat.type == 'file' ? join('/dav', this.stat.filename) : `/frontend${this.stat.filename}`
+    const href = this.stat.type == 'file' ? `dav${this.stat.filename}` : `/frontend${this.stat.filename}`
 
     return html`
       <td><input type="checkbox" .checked=${this.selected} @input=${(e: InputEvent) => this.selected = (e.target! as HTMLInputElement).checked} /></td>
